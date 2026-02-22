@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen">
+    <title>🌌 Digital Universe VR Explorer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            background: #000;
+            color: #0f0;
+            touch-action: none;
+        }
+
+        /* ============================================
+           SCANNER VIEW
+        ============================================ */
+        #scanner-view {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror effect */
+        }
+
+        #scanner-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        #scan-frame {
+            width: 280px;
+            height: 280px;
+            border: 4px solid #0f0;
+            border-radius: 20px;
+            position: relative;
+            animation: pulse 2s ease-in-out infinite;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.5);
+        }
+
+        @keyframes pulse {
+            0%, 100% { 
+                transform: scale(1);
+                box-shadow: 0 0 30px rgba(0, 255, 0, 0.5);
+            }
+            50% { 
+                transform: scale(1.05);
+                box-shadow: 0 0 50px rgba(0, 255, 0, 0.8);
+            }
+        }
+
+        .corner {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border: 5px solid #0f0;
+        }
+
+        .corner.tl { top: -5px; left: -5px; border-right: none; border-bottom: none; }
+        .corner.tr { top: -5px; right: -5px; border-left: none; border-bottom: none; }
+        .corner.bl { bottom: -5px; left: -5px; border-right: none; border-top: none; }
+        .corner.br { bottom: -5px; right: -5px; border-left: none; border-top: none; }
+
+        #instructions {
+            margin-top: 50px;
+            color: #0f0;
+            font-size: 20px;
+            text-align: center;
+            text-shadow: 0 0 15px #0f0;
+            animation: blink 2s ease-in-out infinite;
+            padding: 0 20px;
+            line-height: 1.6;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        #detection-status {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #0f0;
+            font-size: 16px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px 25px;
+            border-radius: 10px;
+            border: 2px solid #0f0;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+            white-space: nowrap;
+        }
+
+        #manual-select {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            pointer-events: all;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 0 20px;
+            max-width: 100%;
+        }
+
+        .logo-button {
+            width: 70px;
+            height: 70px;
+            border: 3px solid #0f0;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.9);
+            cursor: pointer;
+            font-size: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+        }
+
+        .logo-button:active {
+            transform: scale(0.9);
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.7);
+        }
+
+        .logo-label {
+            position: absolute;
+            bottom: -25px;
+            font-size: 11px;
+            color: #0f0;
+            white-space: nowrap;
+        }
+
+        /* ============================================
+           VR VIEW
+        ============================================ */
+        #vr-view {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background: #000;
+        }
+
+        #vr-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #planet-name-display {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 32px;
+            color: #0f0;
+            text-shadow: 0 0 20px #0f0, 0 0 40px #0f0;
+            font-weight: bold;
+            z-index: 10;
+            animation: glow 2s ease-in-out infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { text-shadow: 0 0 20px #0f0, 0 0 40px #0f0; }
+            50% { text-shadow: 0 0 30px #0f0, 0 0 60px #0f0, 0 0 80px #0f0; }
+        }
+
+        #vr-ui {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 0 10px;
+        }
+
+        .vr-button {
+            background: rgba(0, 255, 0, 0.2);
+            border: 2px solid #0f0;
+            color: #0f0;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+            font-weight: bold;
+        }
+
+        .vr-button:active {
+            background: rgba(0, 255, 0, 0.5);
+            transform: scale(0.95);
+            box-shadow: 0 0 25px rgba(0, 255, 0, 0.6);
+        }
+
+        #exit-vr {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 0, 0, 0.3);
+            border: 2px solid #f00;
+            color: #f00;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            z-index: 10;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
+            font-weight: bold;
+        }
+
+        #exit-vr:active {
+            background: rgba(255, 0, 0, 0.5);
+            transform: scale(0.95);
+        }
+
+        #card-counter {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #0f0;
+            font-size: 18px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 2px solid #0f0;
+        }
+
+        /* Loading Screen */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: #0f0;
+        }
+
+        #loading-screen.hidden {
+            display: none;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(0, 255, 0, 0.3);
+            border-top: 4px solid #0f0;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 20px;
+            text-shadow: 0 0 10px #0f0;
+        }
+
+        /* Info Tooltip */
+        #info-tooltip {
+            position: absolute;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: #0f0;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #0f0;
+            max-width: 80%;
+            text-align: center;
+            font-size: 14px;
+            display: none;
+            z-index: 9;
+        }
+
+        #info-tooltip.show {
+            display: block;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 400px) {
+            #scan-frame {
+                width: 220px;
+                height: 220px;
+            }
+
+            #instructions {
+                font-size: 16px;
+            }
+
+            .logo-button {
+                width: 60px;
+                height: 60px;
+                font-size: 30px;
+            }
+
+            #planet-name-display {
+                font-size: 24px;
+            }
+
+            .vr-button {
+                padding: 10px 15px;
+                font-size: 14px;
+            }
+        }
+
+        /* Landscape mode warning */
+        @media (orientation: landscape) and (max-height: 500px) {
+            #landscape-warning {
+                display: block;
+            }
+        }
+
+        #landscape-warning {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.95);
+            color: #0f0;
+            font-size: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="spinner"></div>
+        <div class="loading-text">🌌 Initializing Digital Universe...</div>
+    </div>
+
+    <!-- Landscape Warning -->
+    <div id="landscape-warning">
+        📱 Please rotate to portrait mode for the best experience
+    </div>
+
+    <!-- SCANNER VIEW -->
+    <div id="scanner-view">
+        <video id="video" autoplay playsinline muted></video>
+        
+        <div id="scanner-overlay">
+            <div id="scan-frame">
+                <div class="corner tl"></div>
+                <div class="corner tr"></div>
+                <div class="corner bl"></div>
+                <div class="corner br"></div>
+            </div>
+            
+            <div id="instructions">
+                📱 Point camera at programming<br>language logo to explore
+            </div>
+
+            <!-- Manual Selection Fallback -->
+            <div id="manual-select">
+                <div style="position: relative;">
+                    <button class="logo-button" onclick="enterVR('Python')" title="Python">
+                        🐍
+                    </button>
+                    <div class="logo-label">Python</div>
+                </div>
+                <div style="position: relative;">
+                    <button class="logo-button" onclick="enterVR('JavaScript')" title="JavaScript">
+                        🟨
+                    </button>
+                    <div class="logo-label">JavaScript</div>
+                </div>
+                <div style="position: relative;">
+                    <button class="logo-button" onclick="enterVR('C++')" title="C++">
+                        ⚙️
+                    </button>
+                    <div class="logo-label">C++</div>
+                </div>
+                <div style="position: relative;">
+                    <button class="logo-button" onclick="enterVR('Java')" title="Java">
+                        ☕
+                    </button>
+                    <div class="logo-label">Java</div>
+                </div>
+                <div style="position: relative;">
+                    <button class="logo-button" onclick="enterVR('Rust')" title="Rust">
+                        🦀
+                    </button>
+                    <div class="logo-label">Rust</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="detection-status">🔍 Initializing camera...</div>
+    </div>
+
+    <!-- VR VIEW -->
+    <div id="vr-view">
+        <canvas id="vr-canvas"></canvas>
+        
+        <div id="planet-name-display"></div>
+        <div id="card-counter"></div>
+        
+        <button id="exit-vr" onclick="exitVR()">✕ EXIT</button>
+        
+        <div id="info-tooltip">
+            💡 Tilt your phone to look around!<br>Swipe to navigate cards
+        </div>
+        
+        <div id="vr-ui">
+            <button class="vr-button" onclick="vrController.previousCard()">◀ PREV</button>
+            <button class="vr-button" onclick="vrController.nextCard()">NEXT ▶</button>
+            <button class="vr-button" onclick="vrController.toggleAutoRotate()">🔄 AUTO</button>
+            <button class="vr-button" onclick="vrController.speak()">🔊 SPEAK</button>
+        </div>
+    </div>
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- TensorFlow.js & Teachable Machine (for logo detection) -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+
+    <script>
+        // ============================================
+        // CONFIGURATION
+        // ============================================
+        const CONFIG = {
+            MODEL_URL: 'https://teachablemachine.withgoogle.com/models/-J8q9AsrH/models.json',  // Path to your Teachable Machine model
+            METADATA_URL: 'https://teachablemachine.withgoogle.com/models/-J8q9AsrH/metadata.json',
+            DETECTION_THRESHOLD: 0.85,      // Confidence threshold for logo detection
+            DETECTION_INTERVAL: 500,        // ms between predictions
+            AUTO_ENTER_DELAY: 1000,         // ms before auto-entering VR
+            ENABLE_AUTO_DETECTION: true,    // Set to false to use manual selection only
+            ENABLE_SOUND: false             // Enable sound effects (add sound files first)
+        };
+
+        // ============================================
+        // LOGO DETECTION SYSTEM
+        // ============================================
+        class LogoDetector {
+            constructor() {
+                this.model = null;
+                this.webcam = null;
+                this.isRunning = false;
+                this.lastDetection = null;
+                this.detectionTimeout = null;
+            }
+
+            async init() {
+                if (!CONFIG.ENABLE_AUTO_DETECTION) {
+                    updateStatus('👆 Tap a logo below to explore');
+                    return;
+                }
+
+                try {
+                    // Load model
+                    this.model = await tmImage.load(CONFIG.MODEL_URL, CONFIG.METADATA_URL);
+                    
+                    // Setup webcam
+                    const flip = true;
+                    this.webcam = new tmImage.Webcam(640, 480, flip);
+                    await this.webcam.setup({ facingMode: 'environment' }); // Use back camera
+                    await this.webcam.play();
+                    
+                    // Connect to video element
+                    const video = document.getElementById('video');
+                    video.srcObject = this.webcam.webcam.srcObject;
+                    
+                    updateStatus('✅ Ready to scan logos');
+                    this.startDetection();
+                    
+                } catch (error) {
+                    console.error('Model loading failed:', error);
+                    updateStatus('⚠️ Auto-detection unavailable. Use manual selection below.');
+                    this.fallbackToCamera();
+                }
+            }
+
+            async fallbackToCamera() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: 'environment' } 
+                    });
+                    document.getElementById('video').srcObject = stream;
+                } catch (error) {
+                    console.error('Camera access failed:', error);
+                    updateStatus('📱 Camera unavailable. Use buttons below.');
+                }
+            }
+
+            startDetection() {
+                this.isRunning = true;
+                this.detect();
+            }
+
+            stopDetection() {
+                this.isRunning = false;
+                if (this.detectionTimeout) {
+                    clearTimeout(this.detectionTimeout);
+                }
+            }
+
+            async detect() {
+                if (!this.isRunning || !this.model || !this.webcam) return;
+
+                try {
+                    const prediction = await this.model.predict(this.webcam.canvas);
+                    
+                    // Find highest confidence prediction
+                    let topPrediction = prediction[0];
+                    for (let i = 1; i < prediction.length; i++) {
+                        if (prediction[i].probability > topPrediction.probability) {
+                            topPrediction = prediction[i];
+                        }
+                    }
+
+                    // Process detection
+                    if (topPrediction.probability > CONFIG.DETECTION_THRESHOLD) {
+                        const logoName = topPrediction.className;
+                        
+                        // Ignore "Background" class
+                        if (logoName !== 'Background' && logoName !== 'None') {
+                            this.handleDetection(logoName, topPrediction.probability);
+                        } else {
+                            this.lastDetection = null;
+                            updateStatus('🔍 Scanning for logos...');
+                        }
+                    } else {
+                        this.lastDetection = null;
+                        updateStatus('🔍 Scanning for logos...');
+                    }
+                    
+                } catch (error) {
+                    console.error('Detection error:', error);
+                }
+
+                // Continue detection loop
+                this.detectionTimeout = setTimeout(() => this.detect(), CONFIG.DETECTION_INTERVAL);
+            }
+
+            handleDetection(logoName, confidence) {
+                const confidencePercent = Math.round(confidence * 100);
+                updateStatus(`🎯 ${logoName} detected! (${confidencePercent}%)`);
+                
+                // Auto-enter VR if same logo detected consistently
+                if (this.lastDetection !== logoName) {
+                    this.lastDetection = logoName;
+                    
+                    // Wait for stable detection
+                    setTimeout(() => {
+                        if (this.lastDetection === logoName && this.isRunning) {
+                            enterVR(logoName);
+                        }
+                    }, CONFIG.AUTO_ENTER_DELAY);
+                }
+            }
+
+            stop() {
+                this.stopDetection();
+                if (this.webcam) {
+                    this.webcam.stop();
+                }
+            }
+        }
+
+        // ============================================
+        // VR CAROUSEL SYSTEM
+        // ============================================
+        class VRCarousel {
+            constructor() {
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.cards = [];
+                this.currentCardIndex = 0;
+                this.currentPlanet = null;
+                this.autoRotateEnabled = true;
+                
+                // Device orientation
+                this.orientation = { alpha: 0, beta: 0, gamma: 0 };
+                this.orientationEnabled = false;
+
+                this.init();
+            }
+
+            init() {
+                // Scene setup
+                this.scene = new THREE.Scene();
+                this.camera = new THREE.PerspectiveCamera(
+                    75, 
+                    window.innerWidth / window.innerHeight, 
+                    0.1, 
+                    1000
+                );
+                this.renderer = new THREE.WebGLRenderer({ 
+                    canvas: document.getElementById('vr-canvas'),
+                    antialias: true,
+                    alpha: true 
+                });
+                
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                this.camera.position.set(0, 0, 0);
+
+                // Lighting
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                this.scene.add(ambientLight);
+
+                const pointLight = new THREE.PointLight(0xffffff, 0.8);
+                pointLight.position.set(0, 0, 0);
+                this.scene.add(pointLight);
+
+                // Create 360° space background
+                this.createSkybox();
+
+                // Setup controls
+                this.setupControls();
+
+                // Start animation
+                this.animate();
+
+                // Request orientation permission (iOS)
+                this.requestOrientationPermission();
+            }
+
+            createSkybox() {
+                const geometry = new THREE.SphereGeometry(50, 64, 64);
+                const texture = this.generateSpaceTexture();
+                const material = new THREE.MeshBasicMaterial({
+                    map: texture,
+                    side: THREE.BackSide
+                });
+                const skybox = new THREE.Mesh(geometry, material);
+                this.scene.add(skybox);
+
+                // Add stars
+                this.addStars();
+            }
+
+            generateSpaceTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 2048;
+                canvas.height = 1024;
+                const ctx = canvas.getContext('2d');
+
+                // Deep space gradient
+                const gradient = ctx.createRadialGradient(1024, 512, 0, 1024, 512, 1200);
+                gradient.addColorStop(0, '#1a0033');
+                gradient.addColorStop(0.3, '#0d001a');
+                gradient.addColorStop(0.6, '#000011');
+                gradient.addColorStop(1, '#000000');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, 2048, 1024);
+
+                // Nebula clouds
+                for (let i = 0; i < 20; i++) {
+                    const x = Math.random() * 2048;
+                    const y = Math.random() * 1024;
+                    const radius = Math.random() * 300 + 100;
+                    
+                    const nebula = ctx.createRadialGradient(x, y, 0, x, y, radius);
+                    nebula.addColorStop(0, `rgba(${Math.random() * 100}, ${Math.random() * 50 + 50}, ${Math.random() * 150 + 100}, 0.1)`);
+                    nebula.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                    ctx.fillStyle = nebula;
+                    ctx.fillRect(0, 0, 2048, 1024);
+                }
+
+                // Stars
+                for (let i = 0; i < 2000; i++) {
+                    const x = Math.random() * 2048;
+                    const y = Math.random() * 1024;
+                    const size = Math.random() * 2.5;
+                    const brightness = Math.random();
+                    
+                    ctx.fillStyle = `rgba(255, 255, 255, ${brightness})`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Occasional bright stars with glow
+                    if (Math.random() > 0.98) {
+                        const glow = ctx.createRadialGradient(x, y, 0, x, y, size * 5);
+                        glow.addColorStop(0, `rgba(200, 200, 255, ${brightness * 0.5})`);
+                        glow.addColorStop(1, 'rgba(200, 200, 255, 0)');
+                        ctx.fillStyle = glow;
+                        ctx.fillRect(x - size * 5, y - size * 5, size * 10, size * 10);
+                    }
+                }
+
+                return new THREE.CanvasTexture(canvas);
+            }
+
+            addStars() {
+                const geometry = new THREE.BufferGeometry();
+                const vertices = [];
+                const colors = [];
+
+                for (let i = 0; i < 1500; i++) {
+                    const x = THREE.MathUtils.randFloatSpread(100);
+                    const y = THREE.MathUtils.randFloatSpread(100);
+                    const z = THREE.MathUtils.randFloatSpread(100);
+                    vertices.push(x, y, z);
+
+                    // Vary star colors
+                    const color = new THREE.Color();
+                    color.setHSL(Math.random() * 0.2 + 0.5, 0.3, Math.random() * 0.3 + 0.7);
+                    colors.push(color.r, color.g, color.b);
+                }
+
+                geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+                geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+                const material = new THREE.PointsMaterial({ 
+                    size: 0.15, 
+                    vertexColors: true,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                
+                const stars = new THREE.Points(geometry, material);
+                this.scene.add(stars);
+            }
+
+            loadPlanet(planetName) {
+                this.currentPlanet = planetName;
+                this.clearCards();
+                
+                const planetData = PLANET_DATA[planetName] || PLANET_DATA['Python'];
+                this.createCards(planetData);
+
+                // Update UI
+                document.getElementById('planet-name-display').textContent = `🪐 ${planetName} Universe`;
+                this.updateCardCounter();
+
+                // Show tooltip
+                const tooltip = document.getElementById('info-tooltip');
+                tooltip.classList.add('show');
+                setTimeout(() => tooltip.classList.remove('show'), 4000);
+            }
+
+            createCards(planetData) {
+                const radius = 7;
+                const cardCount = planetData.cards.length;
+                const angleStep = (Math.PI * 2) / cardCount;
+
+                planetData.cards.forEach((cardData, index) => {
+                    const angle = index * angleStep;
+                    const x = Math.cos(angle) * radius;
+                    const z = Math.sin(angle) * radius;
+
+                    const card = this.createCard(cardData, planetData.color);
+                    card.position.set(x, 0, z);
+                    card.lookAt(0, 0, 0);
+                    card.userData.index = index;
+
+                    this.scene.add(card);
+                    this.cards.push(card);
+                });
+
+                this.focusCard(0);
+            }
+
+            createCard(data, color) {
+                const group = new THREE.Group();
+
+                // Card panel
+                const cardGeometry = new THREE.PlaneGeometry(4.5, 6);
+                const cardMaterial = new THREE.MeshPhongMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.85,
+                    side: THREE.DoubleSide,
+                    shininess: 30
+                });
+                const cardMesh = new THREE.Mesh(cardGeometry, cardMaterial);
+                group.add(cardMesh);
+
+                // Glowing border
+                const borderGeometry = new THREE.EdgesGeometry(cardGeometry);
+                const borderMaterial = new THREE.LineBasicMaterial({ 
+                    color: 0x00ff00, 
+                    linewidth: 3 
+                });
+                const border = new THREE.LineSegments(borderGeometry, borderMaterial);
+                group.add(border);
+
+                // Text content
+                const textCanvas = this.createCardTexture(data);
+                const textTexture = new THREE.CanvasTexture(textCanvas);
+                const textMaterial = new THREE.MeshBasicMaterial({ 
+                    map: textTexture, 
+                    transparent: true,
+                    side: THREE.DoubleSide
+                });
+                const textMesh = new THREE.Mesh(
+                    new THREE.PlaneGeometry(4.3, 5.8),
+                    textMaterial
+                );
+                textMesh.position.z = 0.02;
+                group.add(textMesh);
+
+                // Ambient glow
+                const glowGeometry = new THREE.PlaneGeometry(5, 6.5);
+                const glowMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x00ff00,
+                    transparent: true,
+                    opacity: 0.15,
+                    side: THREE.DoubleSide
+                });
+                const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+                glow.position.z = -0.02;
+                group.add(glow);
+
+                group.userData = { data, color, textTexture };
+
+                return group;
+            }
+
+            createCardTexture(data) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 680;
+                const ctx = canvas.getContext('2d');
+
+                // Background
+                const gradient = ctx.createLinearGradient(0, 0, 0, 680);
+                gradient.addColorStop(0, 'rgba(0, 0, 0, 0.95)');
+                gradient.addColorStop(1, 'rgba(0, 20, 0, 0.95)');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, 512, 680);
+
+                // Icon
+                ctx.font = 'Bold 100px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(data.icon, 256, 100);
+
+                // Title
+                ctx.font = 'Bold 36px Courier New';
+                ctx.fillStyle = '#00ff00';
+                ctx.shadowColor = '#00ff00';
+                ctx.shadowBlur = 10;
+                this.wrapText(ctx, data.title, 256, 200, 450, 45);
+                ctx.shadowBlur = 0;
+
+                // Divider line
+                ctx.strokeStyle = '#00ff00';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(50, 250);
+                ctx.lineTo(462, 250);
+                ctx.stroke();
+
+                // Content
+                ctx.font = '22px Courier New';
+                ctx.fillStyle = '#ccffcc';
+                const lines = data.content.split('\n');
+                let y = 300;
+                lines.forEach(line => {
+                    this.wrapText(ctx, line, 256, y, 440, 30);
+                    y += 35;
+                });
+
+                return canvas;
+            }
+
+            wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+                const words = text.split(' ');
+                let line = '';
+                let lines = [];
+
+                words.forEach(word => {
+                    const testLine = line + word + ' ';
+                    const metrics = ctx.measureText(testLine);
+                    
+                    if (metrics.width > maxWidth && line !== '') {
+                        lines.push(line);
+                        line = word + ' ';
+                    } else {
+                        line = testLine;
+                    }
+                });
+                lines.push(line);
+
+                lines.forEach((line, index) => {
+                    ctx.fillText(line.trim(), x, y + (index * lineHeight));
+                });
+            }
+
+            focusCard(index) {
+                this.currentCardIndex = index;
+
+                this.cards.forEach((card, i) => {
+                    const isFocused = i === index;
+                    const scale = isFocused ? 1.3 : 0.85;
+                    const opacity = isFocused ? 1 : 0.4;
+
+                    card.scale.set(scale, scale, scale);
+                    card.children[0].material.opacity = opacity; // Main card
+                    card.children[3].material.opacity = isFocused ? 0.25 : 0.1; // Glow
+                });
+
+                this.updateCardCounter();
+            }
+
+            nextCard() {
+                this.currentCardIndex = (this.currentCardIndex + 1) % this.cards.length;
+                this.focusCard(this.currentCardIndex);
+                this.speak();
+            }
+
+            previousCard() {
+                this.currentCardIndex = (this.currentCardIndex - 1 + this.cards.length) % this.cards.length;
+                this.focusCard(this.currentCardIndex);
+                this.speak();
+            }
+
+            toggleAutoRotate() {
+                this.autoRotateEnabled = !this.autoRotateEnabled;
+                const btn = event.target;
+                btn.textContent = this.autoRotateEnabled ? '🔄 AUTO' : '⏸️ MANUAL';
+            }
+
+            speak() {
+                if (this.cards.length === 0) return;
+
+                const card = this.cards[this.currentCardIndex];
+                const data = card.userData.data;
+                const text = `${data.title}. ${data.content.replace(/\n/g, '. ').replace(/•/g, '')}`;
+
+                speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+                utterance.volume = 1.0;
+                speechSynthesis.speak(utterance);
+            }
+
+            updateCardCounter() {
+                const counter = document.getElementById('card-counter');
+                counter.textContent = `Card ${this.currentCardIndex + 1} / ${this.cards.length}`;
+            }
+
+            clearCards() {
+                this.cards.forEach(card => this.scene.remove(card));
+                this.cards = [];
+            }
+
+            setupControls() {
+                // Device orientation
+                window.addEventListener('deviceorientation', (event) => {
+                    if (this.autoRotateEnabled && event.gamma !== null) {
+                        this.orientationEnabled = true;
+                        this.orientation.alpha = event.alpha || 0;
+                        this.orientation.beta = event.beta || 0;
+                        this.orientation.gamma = event.gamma || 0;
+                    }
+                });
+
+                // Touch controls
+                let touchStartX = 0;
+                let touchStartY = 0;
+                const canvas = document.getElementById('vr-canvas');
+
+                canvas.addEventListener('touchstart', (e) => {
+                    touchStartX = e.touches[0].clientX;
+                    touchStartY = e.touches[0].clientY;
+                });
+
+                canvas.addEventListener('touchend', (e) => {
+                    const touchEndX = e.changedTouches[0].clientX;
+                    const touchEndY = e.changedTouches[0].clientY;
+                    const diffX = touchStartX - touchEndX;
+                    const diffY = touchStartY - touchEndY;
+
+                    // Horizontal swipe (change cards)
+                    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+                        if (diffX > 0) {
+                            this.nextCard();
+                        } else {
+                            this.previousCard();
+                        }
+                    }
+                });
+
+                // Window resize
+                window.addEventListener('resize', () => {
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+            }
+
+            async requestOrientationPermission() {
+                if (typeof DeviceOrientationEvent !== 'undefined' && 
+                    typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    try {
+                        const permission = await DeviceOrientationEvent.requestPermission();
+                        if (permission === 'granted') {
+                            console.log('Orientation permission granted');
+                        }
+                    } catch (error) {
+                        console.warn('Orientation permission denied', error);
+                    }
+                }
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+
+                // Apply device orientation to camera
+                if (this.autoRotateEnabled && this.orientationEnabled) {
+                    const degToRad = Math.PI / 180;
+                    this.camera.rotation.x = -this.orientation.beta * degToRad * 0.3;
+                    this.camera.rotation.y = this.orientation.gamma * degToRad * 0.3;
+                }
+
+                // Gentle floating animation for cards
+                this.cards.forEach((card, i) => {
+                    const time = Date.now() * 0.001;
+                    card.position.y = Math.sin(time + i) * 0.15;
+                    card.rotation.z = Math.sin(time * 0.5 + i) * 0.03;
+                });
+
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        // ============================================
+        // PLANET DATA
+        // ============================================
+        const PLANET_DATA = {
+            'Python': {
+                color: 0x4B8BBE,
+                cards: [
+                    {
+                        title: 'Welcome to Python Planet',
+                        content: 'The friendly, readable language that powers AI, web development, and data science across the galaxy.',
+                        icon: '🐍'
+                    },
+                    {
+                        title: 'Core Strengths',
+                        content: '• Machine Learning & AI\n• Web Development\n• Data Analysis & Visualization\n• Automation & Scripting\n• Scientific Computing',
+                        icon: '⚡'
+                    },
+                    {
+                        title: 'Popular Frameworks',
+                        content: 'NumPy • Pandas • TensorFlow • PyTorch • Django • Flask • FastAPI • Scikit-learn',
+                        icon: '📚'
+                    },
+                    {
+                        title: 'Fun Facts',
+                        content: 'Named after Monty Python, not the snake! Created by Guido van Rossum in 1991. Used by NASA, Google, and Netflix.',
+                        icon: '🎭'
+                    },
+                    {
+                        title: 'Code Example',
+                        content: '# Beautiful and readable\ndef fibonacci(n):\n  a, b = 0, 1\n  for _ in range(n):\n    yield a\n    a, b = b, a + b',
+                        icon: '💻'
+                    }
+                ]
+            },
+            'JavaScript': {
+                color: 0xF7DF1E,
+                cards: [
+                    {
+                        title: 'JavaScript Universe',
+                        content: 'The omnipresent force - runs everywhere from browsers to servers, mobile apps to desktop applications!',
+                        icon: '🌐'
+                    },
+                    {
+                        title: 'Superpowers',
+                        content: '• Interactive Web Pages\n• Server-Side Applications\n• Mobile Development\n• Desktop Apps\n• Game Development\n• IoT Devices',
+                        icon: '⚡'
+                    },
+                    {
+                        title: 'Ecosystem',
+                        content: 'React • Node.js • Vue • Angular • Express • Next.js • Electron • React Native • TypeScript',
+                        icon: '🔧'
+                    },
+                    {
+                        title: 'Fun Facts',
+                        content: 'Created in just 10 days by Brendan Eich in 1995! Now powers 98% of websites and billions of devices worldwide.',
+                        icon: '🚀'
+                    },
+                    {
+                        title: 'Modern JS Magic',
+                        content: '// Async/Await elegance\nconst data = await fetch(url)\n  .then(res => res.json());\n\nconsole.log(data);',
+                        icon: '💻'
+                    }
+                ]
+            },
+            'C++': {
+                color: 0x659AD2,
+                cards: [
+                    {
+                        title: 'C++ Rocket Station',
+                        content: 'The ultimate speed demon - when performance is mission-critical, C++ delivers raw power and precision!',
+                        icon: '🚀'
+                    },
+                    {
+                        title: 'Critical Applications',
+                        content: '• Game Engines (Unreal, Unity)\n• Operating Systems\n• Browsers (Chrome, Firefox)\n• Databases\n• Embedded Systems\n• High-Frequency Trading',
+                        icon: '⚙️'
+                    },
+                    {
+                        title: 'Power Tools',
+                        content: 'STL • Boost • Qt • Unreal Engine • OpenCV • CUDA • Vulkan • DirectX',
+                        icon: '🔨'
+                    },
+                    {
+                        title: 'Epic Achievements',
+                        content: 'Powers Mars Rovers, F1 racing simulators, AAA games, Adobe Photoshop, and mission-critical financial systems!',
+                        icon: '🌟'
+                    },
+                    {
+                        title: 'Modern C++',
+                        content: '// Lambda beauty\nauto sum = [](auto a, auto b) {\n  return a + b;\n};\ncout << sum(5, 3);',
+                        icon: '💻'
+                    }
+                ]
+            },
+            'Java': {
+                color: 0xf89820,
+                cards: [
+                    {
+                        title: 'Java Galaxy',
+                        content: 'Write once, run anywhere! Enterprise-grade power meets cross-platform flexibility in this massive ecosystem.',
+                        icon: '☕'
+                    },
+                    {
+                        title: 'Domain Mastery',
+                        content: '• Android Applications\n• Enterprise Software\n• Big Data Processing\n• Cloud Services\n• Financial Systems\n• E-Commerce Platforms',
+                        icon: '🏢'
+                    },
+                    {
+                        title: 'Frameworks & Tools',
+                        content: 'Spring Boot • Hibernate • Apache Kafka • Android SDK • JavaFX • Maven • Gradle',
+                        icon: '🛠️'
+                    },
+                    {
+                        title: 'Global Impact',
+                        content: '3 billion devices run Java! Powers LinkedIn, Netflix backend, Minecraft, and most Android apps. Named after Java coffee!',
+                        icon: '🌍'
+                    },
+                    {
+                        title: 'Clean Code',
+                        content: 'public class Main {\n  public static void main(String[] args) {\n    System.out.println(\n      "Hello Universe!");\n  }\n}',
+                        icon: '💻'
+                    }
+                ]
+            },
+            'Rust': {
+                color: 0xdea584,
+                cards: [
+                    {
+                        title: 'Rust Realm',
+                        content: 'Memory safety without garbage collection! The future of systems programming with zero-cost abstractions.',
+                        icon: '🦀'
+                    },
+                    {
+                        title: 'Safety First',
+                        content: '• Systems Programming\n• WebAssembly\n• Embedded Systems\n• Blockchain Development\n• Command-Line Tools\n• Network Services',
+                        icon: '🛡️'
+                    },
+                    {
+                        title: 'Rust Arsenal',
+                        content: 'Cargo • Tokio • Actix • Rocket • Serde • Diesel • Wasm-bindgen • Tauri',
+                        icon: '⚡'
+                    },
+                    {
+                        title: 'Community Love',
+                        content: 'Most loved programming language for 8+ years on Stack Overflow! Created by Mozilla, now powering Dropbox, Discord, and more.',
+                        icon: '❤️'
+                    },
+                    {
+                        title: 'Fearless Concurrency',
+                        content: 'fn main() {\n  let data = vec![1, 2, 3];\n  data.iter()\n    .for_each(|x| println!("{}", x));\n}',
+                        icon: '💻'
+                    }
+                ]
+            }
+        };
+
+        // ============================================
+        // GLOBAL FUNCTIONS
+        // ============================================
+        let logoDetector = null;
+        let vrController = null;
+
+        function updateStatus(text) {
+            document.getElementById('detection-status').textContent = text;
+        }
+
+        function enterVR(planetName) {
+            // Stop logo detection
+            if (logoDetector) {
+                logoDetector.stop();
+            }
+
+            // Hide scanner view
+            document.getElementById('scanner-view').style.display = 'none';
+            document.getElementById('vr-view').style.display = 'block';
+
+            // Initialize VR controller if needed
+            if (!vrController) {
+                vrController = new VRCarousel();
+            }
+
+            // Load the selected planet
+            vrController.loadPlanet(planetName);
+
+            // Auto-play first card description
+            setTimeout(() => vrController.speak(), 500);
+        }
+
+        function exitVR() {
+            // Show scanner view
+            document.getElementById('scanner-view').style.display = 'block';
+            document.getElementById('vr-view').style.display = 'none';
+
+            // Stop speech
+            speechSynthesis.cancel();
+
+            // Restart logo detection
+            if (logoDetector) {
+                logoDetector.init();
+            }
+        }
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        window.addEventListener('load', async () => {
+            try {
+                // Initialize logo detector
+                logoDetector = new LogoDetector();
+                await logoDetector.init();
+
+                // Hide loading screen
+                document.getElementById('loading-screen').classList.add('hidden');
+
+            } catch (error) {
+                console.error('Initialization error:', error);
+                document.getElementById('loading-screen').classList.add('hidden');
+                updateStatus('⚠️ System ready. Use manual selection.');
+            }
+        });
+
+        // Prevent accidental exit
+        window.addEventListener('beforeunload', (e) => {
+            if (document.getElementById('vr-view').style.display === 'block') {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+    </script>
+</body>
+</html>
